@@ -528,7 +528,12 @@
             
             try {
                 mediaStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 1280, height: 720, facingMode: 'user' },
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 360 },
+                        frameRate: { ideal: 15, max: 20 },
+                        facingMode: 'user'
+                    },
                     audio: false
                 });
                 document.getElementById('videoPreview').srcObject = mediaStream;
@@ -631,7 +636,10 @@
                 ? 'video/webm;codecs=vp8' 
                 : 'video/webm';
             
-            mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
+            mediaRecorder = new MediaRecorder(mediaStream, { 
+                mimeType,
+                videoBitsPerSecond: 300000  // 300 kbps for smaller file size
+            });
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
