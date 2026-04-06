@@ -7,6 +7,7 @@ import (
 type Event struct {
 	Type      string `json:"type"`
 	Timestamp int64  `json:"timestamp"`
+	Target    string `json:"target,omitempty"`
 }
 
 type Broadcaster struct {
@@ -44,6 +45,18 @@ func (b *Broadcaster) Broadcast(e Event) {
 	defer b.mu.RUnlock()
 
 	for _, ch := range b.clients {
+		select {
+		case ch <- e:
+		default:
+		}
+	}
+}
+
+func (b *Broadcaster) SendTo(id string, e Event) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	if ch, ok := b.clients[id]; ok {
 		select {
 		case ch <- e:
 		default:

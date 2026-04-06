@@ -75,10 +75,12 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 
 	for id, sub := range subjects {
 		subjectsJSON[id] = map[string]any{
-			"connected":      sub.Connected,
-			"scenarios_done": sub.ScenariosDone,
-			"bytes_received": sub.BytesReceived,
-			"last_seen":      sub.LastSeen.Format(time.RFC3339),
+			"connected":        sub.Connected,
+			"name":             sub.Name,
+			"scenarios_done":   sub.ScenariosDone,
+			"current_scenario": sub.CurrentScenario,
+			"bytes_received":   sub.BytesReceived,
+			"last_seen":        sub.LastSeen.Format(time.RFC3339),
 		}
 	}
 
@@ -103,6 +105,11 @@ func (h *Handler) SSE(w http.ResponseWriter, r *http.Request) {
 	if err := upload.ValidateSubjectID(subjectID); err != nil {
 		http.Error(w, `{"error":"invalid subject_id"}`, http.StatusBadRequest)
 		return
+	}
+
+	name := r.URL.Query().Get("name")
+	if name != "" {
+		h.session.SetName(subjectID, name)
 	}
 
 	flusher, ok := w.(http.Flusher)
@@ -183,6 +190,9 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	subjectID := chi.URLParam(r, "subjectID")
 	scenario := chi.URLParam(r, "scenario")
 
+	// Track that this scenario is being recorded
+	h.session.SetCurrentScenario(subjectID, scenario)
+
 	n, err := upload.WriteChunked(h.dataDir, subjectID, scenario, r.Body)
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid") {
@@ -194,6 +204,8 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.session.RecordUpload(subjectID, scenario, n)
+	// Clear current scenario after upload completes
+	h.session.SetCurrentScenario(subjectID, "")
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]int64{"bytes": n})

@@ -4,8 +4,845 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FER Data Collection</title>
+    <style>
+        :root {
+            --bg: #faf8f5;
+            --surface: #f5f2ed;
+            --border: #d4cfc6;
+            --text: #3d3830;
+            --text-muted: #6b6358;
+            --primary: #8b7355;
+            --primary-hover: #725f47;
+            --error: #a63d3d;
+            --success: #4a7c59;
+            --warning: #b8860b;
+            --recording: #c44;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Georgia, 'Times New Roman', serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .screen h1 {
+            font-size: 2rem;
+            font-weight: normal;
+            margin-bottom: 1.5rem;
+            color: var(--text);
+        }
+
+        .screen p {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            max-width: 500px;
+            margin-bottom: 1.5rem;
+            color: var(--text-muted);
+        }
+
+        label {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+            text-align: center;
+        }
+
+        input[type="text"], textarea {
+            font-family: inherit;
+            font-size: 1rem;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            background: #fff;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto 1rem auto;
+            display: block;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        textarea {
+            max-width: 600px;
+            resize: vertical;
+        }
+
+        button {
+            font-family: inherit;
+            font-size: 1rem;
+            padding: 0.75rem 2rem;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: block;
+            margin: 0 auto;
+        }
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        button:disabled {
+            background: var(--border);
+            cursor: not-allowed;
+        }
+
+        .error-text {
+            color: var(--error);
+            font-size: 0.9rem;
+            margin: -0.5rem auto 1rem auto;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 0.75rem 1.5rem;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .top-bar.visible {
+            display: flex;
+        }
+
+        .subject-id-display {
+            color: var(--text-muted);
+        }
+
+        .timer-display {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--text);
+        }
+
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0.75rem 1.5rem;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .bottom-bar.visible {
+            display: flex;
+        }
+
+        .recording-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--recording);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .status-pill {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            display: none;
+        }
+
+        .status-pill.visible {
+            display: block;
+        }
+
+        .status-pill.connected {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .status-pill.reconnecting {
+            background: var(--warning);
+            color: #fff;
+        }
+
+        .video-preview {
+            width: 640px;
+            height: 480px;
+            background: #000;
+            transform: scaleX(-1);
+            margin: 0 auto 1.5rem auto;
+            display: block;
+        }
+
+        .waiting-dots {
+            display: flex;
+            gap: 0.5rem;
+            margin: 0 auto 1.5rem auto;
+            justify-content: center;
+        }
+
+        .waiting-dots span {
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .waiting-dots span:nth-child(1) { animation-delay: 0s; }
+        .waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .waiting-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .task-container {
+            width: 100%;
+            max-width: 700px;
+            text-align: left;
+            padding-top: 3rem;
+            padding-bottom: 4rem;
+            margin: 0 auto;
+        }
+
+        .task-container h2 {
+            font-size: 1.5rem;
+            font-weight: normal;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .task-instruction {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            text-align: center;
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 600px;
+        }
+
+        .question-list {
+            list-style: none;
+        }
+
+        .question-list li {
+            margin-bottom: 1rem;
+        }
+
+        .question-list label {
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .question-list input {
+            max-width: 100%;
+        }
+
+        .copy-text-source {
+            background: var(--surface);
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+            font-size: 1rem;
+        }
+
+        .instruction-steps {
+            background: var(--surface);
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .instruction-steps p {
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+            color: var(--text);
+            max-width: none;
+        }
+
+        .instruction-steps p:last-child {
+            margin-bottom: 0;
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+
+        .note-small {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        .checkmark {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem auto;
+            display: block;
+        }
+
+        .checkmark circle {
+            fill: var(--success);
+        }
+
+        .checkmark path {
+            stroke: #fff;
+            stroke-width: 3;
+            fill: none;
+        }
+
+        .upload-status {
+            color: var(--text-muted);
+        }
+
+        .upload-status.success {
+            color: var(--success);
+        }
+
+        .upload-status.error {
+            color: var(--error);
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .time-up-message {
+            color: var(--error);
+            font-weight: bold;
+            text-align: center;
+            margin-top: 1rem;
+        }
+    </style>
 </head>
 <body>
-    <h1>Placeholder - recorder.html</h1>
+    <div class="top-bar" id="topBar">
+        <span></span>
+        <span class="timer-display" id="timerDisplay"></span>
+        <span class="subject-id-display" id="subjectIdDisplay"></span>
+    </div>
+
+    <div class="bottom-bar" id="bottomBar">
+        <span class="recording-dot" id="recordingDot"></span>
+        <span class="upload-status" id="uploadStatus">Merekam...</span>
+    </div>
+
+    <div class="status-pill" id="statusPill"></div>
+
+    <!-- Screen 1: Welcome -->
+    <div class="screen active" id="screen1">
+        <h1>Selamat Datang</h1>
+        <p>Terima kasih telah berpartisipasi dalam penelitian ini. Penelitian ini akan merekam ekspresi wajah Anda melalui kamera laptop selama beberapa tugas singkat.</p>
+        <label for="nameInput">Masukkan Nama Lengkap Anda</label>
+        <input type="text" id="nameInput" placeholder="Contoh: Ahmad Suryadi" autocomplete="off">
+        <div class="error-text" id="nameError" style="display: none;"></div>
+        <button id="startBtn">Mulai</button>
+    </div>
+
+    <!-- Screen 2: Camera Permission -->
+    <div class="screen" id="screen2">
+        <h1>Izin Kamera</h1>
+        <p>Kami membutuhkan akses ke kamera Anda untuk merekam ekspresi wajah. Klik tombol di bawah, lalu pilih 'Izinkan' saat browser meminta izin.</p>
+        <button id="cameraBtn">Aktifkan Kamera</button>
+        <div class="error-text" id="cameraError" style="display: none;"></div>
+    </div>
+
+    <!-- Screen 3: Camera Check -->
+    <div class="screen" id="screen3">
+        <h1>Cek Kamera</h1>
+        <video class="video-preview" id="videoPreview" autoplay playsinline muted></video>
+        <p>Pastikan wajah Anda terlihat jelas. Duduk tegak, hadap ke layar, dan pastikan ruangan cukup terang.</p>
+        <button id="cameraReadyBtn">Kamera Saya Sudah Siap</button>
+    </div>
+
+    <!-- Screen 4: Waiting -->
+    <div class="screen" id="screen4">
+        <h1>Menunggu Peneliti...</h1>
+        <div class="waiting-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <p>Sesi akan segera dimulai. Tetap duduk di depan laptop dan jangan tutup halaman ini.</p>
+    </div>
+
+    <!-- Screen 5: Active Tasks -->
+    <div class="screen" id="screen5">
+        <div class="task-container" id="taskContainer"></div>
+    </div>
+
+    <!-- Screen 6: Complete -->
+    <div class="screen" id="screen6">
+        <svg class="checkmark" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="38"/>
+            <path d="M24 42 L34 52 L56 30"/>
+        </svg>
+        <h1>Terima Kasih!</h1>
+        <p>Sesi telah selesai. Semua data Anda telah tersimpan dengan aman. Anda boleh menutup halaman ini sekarang.</p>
+        <p class="subject-id-display" id="finalSubjectId"></p>
+    </div>
+
+    <!-- Error Screen -->
+    <div class="screen" id="screenError">
+        <h1>Terjadi Kesalahan</h1>
+        <p id="errorMessage"></p>
+        <button id="retryBtn" style="display: none;">Coba Lagi</button>
+    </div>
+
+    <script>
+        const SCENARIOS = [
+            { id: 'antusias', duration: 90, showTimer: true },
+            { id: 'bosan', duration: 180, showTimer: false },
+            { id: 'bingung', duration: 120, showTimer: false },
+            { id: 'frustrasi', duration: 180, showTimer: true }
+        ];
+
+        const CHUNK_SIZE = 512 * 1024;
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY = 2000;
+
+        let subjectId = '';
+        let subjectName = '';
+        let mediaStream = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let eventSource = null;
+        let currentScenarioIndex = 0;
+        let scenarioTimer = null;
+        let elapsedTimer = null;
+        let elapsedSeconds = 0;
+        let reconnectAttempts = 0;
+
+        // Generate UUID v4
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Check browser support
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+            showError('Browser Anda tidak mendukung fitur ini. Gunakan Google Chrome atau Microsoft Edge.');
+        }
+
+        // Screen management
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function showError(message, showRetry = false) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('retryBtn').style.display = showRetry ? 'block' : 'none';
+            showScreen('screenError');
+        }
+
+        // Screen 1: Welcome
+        document.getElementById('startBtn').addEventListener('click', () => {
+            const input = document.getElementById('nameInput').value.trim();
+            const error = document.getElementById('nameError');
+            
+            if (!input || input.length < 3) {
+                error.textContent = 'Mohon masukkan nama lengkap Anda (minimal 3 karakter).';
+                error.style.display = 'block';
+                return;
+            }
+            
+            subjectName = input;
+            subjectId = generateUUID();
+            error.style.display = 'none';
+            showScreen('screen2');
+        });
+
+        document.getElementById('nameInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('startBtn').click();
+        });
+
+        // Screen 2: Camera Permission
+        document.getElementById('cameraBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('cameraBtn');
+            const error = document.getElementById('cameraError');
+            
+            btn.disabled = true;
+            btn.textContent = 'Mengaktifkan kamera...';
+            error.style.display = 'none';
+            
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 1280, height: 720, facingMode: 'user' },
+                    audio: false
+                });
+                document.getElementById('videoPreview').srcObject = mediaStream;
+                showScreen('screen3');
+            } catch (err) {
+                error.innerHTML = 'Kamera tidak dapat diakses. Pastikan Anda mengizinkan akses kamera, lalu muat ulang halaman.<br><br><button onclick="location.reload()">Muat Ulang</button>';
+                error.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Aktifkan Kamera';
+            }
+        });
+
+        // Screen 3: Camera Check
+        document.getElementById('cameraReadyBtn').addEventListener('click', () => {
+            showScreen('screen4');
+            connectSSE();
+        });
+
+        // Screen 4: SSE Connection
+        function connectSSE() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            const pill = document.getElementById('statusPill');
+            pill.className = 'status-pill visible reconnecting';
+            pill.textContent = 'Menghubungkan...';
+
+            const encodedName = encodeURIComponent(subjectName);
+            eventSource = new EventSource(`/session/cues?subject_id=${subjectId}&name=${encodedName}`);
+
+            eventSource.onopen = () => {
+                pill.className = 'status-pill visible connected';
+                pill.textContent = 'Terhubung';
+                reconnectAttempts = 0;
+            };
+
+            eventSource.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'start') {
+                        pill.classList.remove('visible');
+                        startScenarios();
+                    }
+                } catch (err) {
+                    console.error('SSE parse error:', err);
+                }
+            };
+
+            eventSource.onerror = () => {
+                eventSource.close();
+                pill.className = 'status-pill visible reconnecting';
+                pill.textContent = 'Mencoba menghubungkan kembali...';
+                
+                reconnectAttempts++;
+                const delay = Math.min(2000 * Math.pow(1.5, reconnectAttempts - 1), 10000);
+                setTimeout(connectSSE, delay);
+            };
+        }
+
+        // Screen 5: Scenarios
+        async function startScenarios() {
+            showScreen('screen5');
+            document.getElementById('topBar').classList.add('visible');
+            document.getElementById('subjectIdDisplay').textContent = `Peserta: ${subjectName}`;
+            
+            for (let i = 0; i < SCENARIOS.length; i++) {
+                currentScenarioIndex = i;
+                await runScenario(SCENARIOS[i]);
+            }
+            
+            // All done
+            document.getElementById('topBar').classList.remove('visible');
+            document.getElementById('bottomBar').classList.remove('visible');
+            document.getElementById('finalSubjectId').textContent = `Peserta: ${subjectName}`;
+            showScreen('screen6');
+        }
+
+        async function runScenario(scenario) {
+            renderScenarioContent(scenario);
+            
+            // Update server with current scenario by making first upload with empty body
+            // This sets current_scenario on the server
+            try {
+                const emptyBlob = new Blob([], { type: 'application/octet-stream' });
+                await fetch(`/upload/${subjectId}/${scenario.id}`, {
+                    method: 'POST',
+                    body: emptyBlob,
+                    headers: { 'Content-Type': 'application/octet-stream' }
+                });
+            } catch (err) {
+                console.error('Failed to initialize scenario:', err);
+            }
+            
+            // Start recording
+            recordedChunks = [];
+            elapsedSeconds = 0;
+            
+            const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') 
+                ? 'video/webm;codecs=vp8' 
+                : 'video/webm';
+            
+            mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+            mediaRecorder.start(1000);
+            
+            // Show recording indicator
+            const bottomBar = document.getElementById('bottomBar');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const recordingDot = document.getElementById('recordingDot');
+            
+            bottomBar.classList.add('visible');
+            recordingDot.style.display = 'block';
+            uploadStatus.className = 'upload-status';
+            uploadStatus.textContent = 'Merekam... 00:00';
+            
+            elapsedTimer = setInterval(() => {
+                elapsedSeconds++;
+                const mm = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+                const ss = String(elapsedSeconds % 60).padStart(2, '0');
+                uploadStatus.textContent = `Merekam... ${mm}:${ss}`;
+            }, 1000);
+
+            // Timer display
+            const timerDisplay = document.getElementById('timerDisplay');
+            let remaining = scenario.duration;
+            
+            if (scenario.showTimer) {
+                updateTimerDisplay(remaining);
+            } else {
+                timerDisplay.textContent = '';
+            }
+
+            // Wait for scenario to complete
+            await new Promise((resolve) => {
+                scenarioTimer = setInterval(() => {
+                    remaining--;
+                    if (scenario.showTimer) {
+                        updateTimerDisplay(remaining);
+                    }
+                    if (remaining <= 0) {
+                        clearInterval(scenarioTimer);
+                        onScenarioTimeUp(scenario);
+                        resolve();
+                    }
+                }, 1000);
+            });
+
+            // Stop recording
+            clearInterval(elapsedTimer);
+            
+            // Wait for MediaRecorder to properly finalize
+            await new Promise((resolve) => {
+                mediaRecorder.onstop = resolve;
+                mediaRecorder.stop();
+            });
+            
+            // Upload
+            recordingDot.style.display = 'none';
+            uploadStatus.textContent = 'Mengunggah video...';
+            
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const success = await uploadVideo(blob, scenario.id);
+            
+            if (success) {
+                uploadStatus.className = 'upload-status success';
+                uploadStatus.textContent = 'Video tersimpan ✓';
+                await new Promise(r => setTimeout(r, 2000));
+            } else {
+                throw new Error('Upload failed');
+            }
+        }
+
+        function updateTimerDisplay(seconds) {
+            const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+            const ss = String(seconds % 60).padStart(2, '0');
+            document.getElementById('timerDisplay').textContent = `Sisa waktu: ${mm}:${ss}`;
+        }
+
+        function onScenarioTimeUp(scenario) {
+            // Disable inputs
+            document.querySelectorAll('#taskContainer input, #taskContainer textarea').forEach(el => {
+                el.disabled = true;
+            });
+            
+            // Show time up message for timed scenarios
+            if (scenario.showTimer) {
+                const msg = document.createElement('div');
+                msg.className = 'time-up-message';
+                msg.textContent = 'Waktu habis. Melanjutkan ke tahap berikutnya.';
+                document.getElementById('taskContainer').appendChild(msg);
+            }
+        }
+
+        async function uploadVideo(blob, scenarioId) {
+            const totalChunks = Math.ceil(blob.size / CHUNK_SIZE);
+            const uploadStatus = document.getElementById('uploadStatus');
+            
+            for (let i = 0; i < totalChunks; i++) {
+                const start = i * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, blob.size);
+                const chunk = blob.slice(start, end);
+                
+                uploadStatus.textContent = `Mengunggah video... ${i + 1} dari ${totalChunks} bagian`;
+                
+                let success = false;
+                for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                    try {
+                        const resp = await fetch(`/upload/${subjectId}/${scenarioId}`, {
+                            method: 'POST',
+                            body: chunk,
+                            headers: { 'Content-Type': 'application/octet-stream' }
+                        });
+                        if (resp.ok) {
+                            success = true;
+                            break;
+                        }
+                    } catch (err) {
+                        console.error(`Upload chunk ${i} attempt ${attempt + 1} failed:`, err);
+                    }
+                    if (attempt < MAX_RETRIES - 1) {
+                        await new Promise(r => setTimeout(r, RETRY_DELAY));
+                    }
+                }
+                
+                if (!success) {
+                    uploadStatus.className = 'upload-status error';
+                    uploadStatus.textContent = 'Gagal mengirim video. Periksa koneksi internet Anda.';
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+
+        function renderScenarioContent(scenario) {
+            const container = document.getElementById('taskContainer');
+            
+            switch (scenario.id) {
+                case 'antusias':
+                    container.innerHTML = `
+                        <h2>Kuis Pengetahuan Umum</h2>
+                        <p class="task-instruction">Jawab sebanyak mungkin pertanyaan berikut sebelum waktu habis! Tulis jawaban singkat Anda di setiap kotak.</p>
+                        <ol class="question-list">
+                            <li>
+                                <label>1. Apa nama ibu kota negara Australia?</label>
+                                <input type="text" placeholder="Jawaban Anda">
+                            </li>
+                            <li>
+                                <label>2. Berapa jumlah planet dalam tata surya kita?</label>
+                                <input type="text" placeholder="Jawaban Anda">
+                            </li>
+                            <li>
+                                <label>3. Siapa penemu telepon?</label>
+                                <input type="text" placeholder="Jawaban Anda">
+                            </li>
+                            <li>
+                                <label>4. Apa nama gunung tertinggi di Indonesia?</label>
+                                <input type="text" placeholder="Jawaban Anda">
+                            </li>
+                            <li>
+                                <label>5. Dalam olahraga sepak bola, berapa jumlah pemain dalam satu tim di lapangan?</label>
+                                <input type="text" placeholder="Jawaban Anda">
+                            </li>
+                            <li>
+                                <label>6. Negara mana yang memiliki jumlah penduduk terbanyak di dunia?</label>
+                                <input type="text" placeholder="Jawaban Anda">
+                            </li>
+                        </ol>
+                    `;
+                    break;
+                    
+                case 'bosan':
+                    container.innerHTML = `
+                        <h2>Tugas Menyalin Teks</h2>
+                        <p class="task-instruction">Salin teks di bawah ini ke dalam kotak yang tersedia. Ketik setiap kata dengan tepat seperti yang tertulis.</p>
+                        <div class="copy-text-source">
+                            Berdasarkan peraturan nomor 12 tahun 2023 tentang tata kelola administrasi, setiap unit kerja wajib menyampaikan laporan bulanan paling lambat pada tanggal lima setiap bulannya. Laporan tersebut mencakup realisasi anggaran, realisasi kegiatan, dan kendala pelaksanaan kegiatan. Setiap unit kerja wajib menyampaikan laporan bulanan paling lambat pada tanggal lima setiap bulannya. Laporan tersebut mencakup realisasi anggaran, realisasi kegiatan, dan kendala pelaksanaan kegiatan. Seluruh laporan harus disertai dengan lampiran bukti pendukung yang sah. Keterlambatan penyampaian laporan akan dicatat dan dilaporkan kepada pimpinan unit kerja. Setiap unit kerja wajib menyampaikan laporan bulanan paling lambat pada tanggal lima setiap bulannya.
+                        </div>
+                        <textarea placeholder="Ketik ulang teks di atas di sini" rows="8"></textarea>
+                    `;
+                    break;
+                    
+                case 'bingung':
+                    container.innerHTML = `
+                        <h2>Tugas Mengikuti Instruksi</h2>
+                        <p class="task-instruction">Baca setiap langkah di bawah ini dengan cermat, lalu tuliskan urutan langkah yang menurut Anda benar di kotak jawaban.</p>
+                        <div class="instruction-steps">
+                            <p><strong>Langkah A:</strong> Isi formulir hanya jika Anda sudah menerima kode dari langkah C.</p>
+                            <p><strong>Langkah B:</strong> Kirim formulir setelah langkah D selesai, kecuali langkah A belum dilakukan.</p>
+                            <p><strong>Langkah C:</strong> Dapatkan kode setelah langkah B dikirim, lalu kembali ke langkah A.</p>
+                            <p><strong>Langkah D:</strong> Verifikasi formulir dari langkah A sebelum melanjutkan ke langkah B.</p>
+                            <p>Pertanyaan: Langkah mana yang harus dilakukan pertama kali, dan mengapa?</p>
+                        </div>
+                        <textarea placeholder="Tulis jawaban dan alasan Anda di sini" rows="5"></textarea>
+                        <p class="note-small">Tidak ada jawaban yang salah. Tulis apa yang Anda pikirkan.</p>
+                    `;
+                    break;
+                    
+                case 'frustrasi':
+                    container.innerHTML = `
+                        <h2>Tugas Menemukan Kata</h2>
+                        <p class="task-instruction">Temukan dan tuliskan semua kata yang mengandung huruf 'ng' berturut-turut dalam teks di bawah ini. Anda harus menemukan tepat 25 kata. Tuliskan satu kata per baris di kotak jawaban.</p>
+                        <div class="copy-text-source">
+                            Pada hari itu cuaca terasa panas sekali. Para petani di desa itu bekerja keras di sawah mereka. Mereka menanam padi dengan tekun dari pagi sampai sore. Air dari sumber mata air dialirkan ke seluruh sawah. Beberapa orang membawa bekal makanan dari rumah. Anak-anak bermain di tepi jalan sambil menonton para petani. Seorang kakek duduk di bawah pohon besar. Dia melihat cucu-cucunya berlarian ke sana kemari. Seekor kupu-kupu terbang melewati ladang bunga. Burung-burung kecil berkicau di dahan pohon. Udara terasa sejuk ketika angin bertiup dari barat. Para petani beristirahat sejenak untuk makan siang. Mereka duduk bersama di bawah naungan gubuk kecil. Setelah itu mereka kembali bekerja sampai matahari terbenam.
+                        </div>
+                        <textarea placeholder="Tulis satu kata per baris" rows="10"></textarea>
+                        <p class="note-small">Pastikan Anda menemukan semua 25 kata sebelum waktu habis.</p>
+                    `;
+                    break;
+            }
+        }
+    </script>
 </body>
 </html>

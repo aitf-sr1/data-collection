@@ -4,8 +4,365 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FER Admin</title>
+    <style>
+        :root {
+            --bg: #faf8f5;
+            --surface: #f5f2ed;
+            --border: #d4cfc6;
+            --text: #3d3830;
+            --text-muted: #6b6358;
+            --primary: #8b7355;
+            --primary-hover: #725f47;
+            --error: #a63d3d;
+            --success: #4a7c59;
+            --warning: #b8860b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Georgia, 'Times New Roman', serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-weight: normal;
+            margin-bottom: 2rem;
+            font-size: 1.8rem;
+        }
+
+        .auth-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+        }
+
+        .auth-section label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .auth-section input {
+            font-family: inherit;
+            font-size: 1rem;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            background: #fff;
+            width: 250px;
+            margin-right: 0.5rem;
+        }
+
+        .auth-section input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button {
+            font-family: inherit;
+            font-size: 1rem;
+            padding: 0.5rem 1.5rem;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        button:disabled {
+            background: var(--border);
+            cursor: not-allowed;
+        }
+
+        .status-cards {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .status-card {
+            flex: 1;
+            padding: 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+        }
+
+        .status-card .label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .status-card .value {
+            font-size: 1.5rem;
+        }
+
+        .banner {
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid;
+        }
+
+        .banner.warning {
+            background: #fff8e6;
+            border-color: var(--warning);
+            color: #664d00;
+        }
+
+        .banner.success {
+            background: #e8f5e9;
+            border-color: var(--success);
+            color: #2e5a38;
+        }
+
+        .banner.info {
+            background: var(--surface);
+            border-color: var(--border);
+            color: var(--text);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--surface);
+            font-weight: normal;
+            color: var(--text-muted);
+        }
+
+        tr.complete {
+            background: #e8f5e9;
+        }
+
+        tr.in-progress {
+            background: #fff8e6;
+        }
+
+        tr.disconnected {
+            background: #ffebee;
+        }
+
+        .session-time {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        .error-text {
+            color: var(--error);
+            margin-top: 0.5rem;
+        }
+    </style>
 </head>
 <body>
-    <h1>Placeholder - admin.html</h1>
+    <h1>FER Data Collection Admin</h1>
+
+    <div class="auth-section">
+        <label for="tokenInput">Admin Token</label>
+        <input type="password" id="tokenInput" placeholder="Enter admin token">
+    </div>
+
+    <div class="status-cards">
+        <div class="status-card">
+            <div class="label">Session Status</div>
+            <div class="value" id="sessionStatus">Not Started</div>
+            <div class="session-time" id="sessionTime"></div>
+        </div>
+        <div class="status-card">
+            <div class="label">Connected Students</div>
+            <div class="value" id="connectedCount">0</div>
+        </div>
+        <div class="status-card">
+            <div class="label">Completed</div>
+            <div class="value" id="completedCount">0 / 30</div>
+        </div>
+    </div>
+
+    <div id="bannerContainer"></div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <button id="startBtn" disabled>Start Session</button>
+        <span class="error-text" id="startError"></span>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>UUID</th>
+                <th>Connected</th>
+                <th>Current Task</th>
+                <th>Scenarios Done</th>
+                <th>Bytes</th>
+                <th>Last Seen</th>
+            </tr>
+        </thead>
+        <tbody id="subjectTable">
+            <tr><td colspan="7" style="color: var(--text-muted);">No subjects yet</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        let adminToken = '';
+        let sessionStarted = false;
+        let refreshInterval = null;
+
+        const tokenInput = document.getElementById('tokenInput');
+        const startBtn = document.getElementById('startBtn');
+        const startError = document.getElementById('startError');
+
+        tokenInput.addEventListener('input', () => {
+            adminToken = tokenInput.value;
+            startBtn.disabled = !adminToken || sessionStarted;
+        });
+
+        startBtn.addEventListener('click', async () => {
+            startBtn.disabled = true;
+            startError.textContent = '';
+
+            try {
+                const resp = await fetch('/session/start', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+
+                if (resp.ok) {
+                    const data = await resp.json();
+                    sessionStarted = true;
+                    document.getElementById('sessionStatus').textContent = 'Running';
+                    document.getElementById('sessionTime').textContent = `Started at ${new Date().toLocaleTimeString()}`;
+                    startBtn.textContent = 'Session Started';
+                } else if (resp.status === 409) {
+                    startError.textContent = 'Session already started';
+                    sessionStarted = true;
+                    startBtn.textContent = 'Session Started';
+                } else if (resp.status === 401) {
+                    startError.textContent = 'Invalid token';
+                    startBtn.disabled = false;
+                } else {
+                    startError.textContent = 'Failed to start session';
+                    startBtn.disabled = false;
+                }
+            } catch (err) {
+                startError.textContent = 'Network error';
+                startBtn.disabled = false;
+            }
+        });
+
+        async function refreshStatus() {
+            try {
+                const resp = await fetch('/status');
+                const data = await resp.json();
+
+                // Update session status
+                if (data.started) {
+                    sessionStarted = true;
+                    document.getElementById('sessionStatus').textContent = 'Running';
+                    if (data.started_at) {
+                        document.getElementById('sessionTime').textContent = 
+                            `Started at ${new Date(data.started_at).toLocaleTimeString()}`;
+                    }
+                    startBtn.textContent = 'Session Started';
+                    startBtn.disabled = true;
+                }
+
+                // Update counts
+                document.getElementById('connectedCount').textContent = data.connected_clients;
+
+                // Update table
+                const subjects = data.subjects || {};
+                const subjectIds = Object.keys(subjects).sort();
+                const tbody = document.getElementById('subjectTable');
+                
+                let completedCount = 0;
+                let rows = '';
+
+                if (subjectIds.length === 0) {
+                    rows = '<tr><td colspan="7" style="color: var(--text-muted);">No subjects yet</td></tr>';
+                } else {
+                    for (const id of subjectIds) {
+                        const s = subjects[id];
+                        const scenarioCount = s.scenarios_done ? s.scenarios_done.length : 0;
+                        const isComplete = scenarioCount >= 4;
+                        const isConnected = s.connected;
+                        
+                        if (isComplete) completedCount++;
+                        
+                        let rowClass = '';
+                        if (isComplete) rowClass = 'complete';
+                        else if (scenarioCount > 0) rowClass = 'in-progress';
+                        else if (!isConnected && scenarioCount > 0) rowClass = 'disconnected';
+
+                        const lastSeen = s.last_seen ? new Date(s.last_seen).toLocaleTimeString() : '-';
+                        const bytes = s.bytes_received ? formatBytes(s.bytes_received) : '0 B';
+                        const scenarios = s.scenarios_done ? s.scenarios_done.join(', ') : '-';
+                        const name = s.name || '-';
+                        const shortId = id.substring(0, 8);
+                        const currentScenario = s.current_scenario || '-';
+
+                        rows += `<tr class="${rowClass}">
+                            <td>${name}</td>
+                            <td title="${id}">${shortId}...</td>
+                            <td>${isConnected ? 'Yes' : 'No'}</td>
+                            <td>${currentScenario}</td>
+                            <td>${scenarios} (${scenarioCount}/4)</td>
+                            <td>${bytes}</td>
+                            <td>${lastSeen}</td>
+                        </tr>`;
+                    }
+                }
+
+                tbody.innerHTML = rows;
+                document.getElementById('completedCount').textContent = `${completedCount} / 30`;
+
+                // Banners
+                const bannerContainer = document.getElementById('bannerContainer');
+                let banners = '';
+
+                if (!sessionStarted && data.connected_clients < 20) {
+                    banners += `<div class="banner warning">Only ${data.connected_clients} students connected. Wait for more before starting.</div>`;
+                }
+
+                if (completedCount >= subjectIds.length && subjectIds.length > 0 && sessionStarted) {
+                    banners += `<div class="banner success">All students complete. You can run pull_data.sh now.</div>`;
+                }
+
+                bannerContainer.innerHTML = banners;
+
+            } catch (err) {
+                console.error('Failed to refresh status:', err);
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Initial load and start refresh
+        refreshStatus();
+        refreshInterval = setInterval(refreshStatus, 3000);
+    </script>
 </body>
 </html>

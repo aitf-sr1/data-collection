@@ -7,10 +7,12 @@ import (
 )
 
 type SubjectState struct {
-	Connected     bool
-	ScenariosDone []string
-	BytesReceived int64
-	LastSeen      time.Time
+	Connected        bool
+	Name             string
+	ScenariosDone    []string
+	CurrentScenario  string
+	BytesReceived    int64
+	LastSeen         time.Time
 }
 
 type State struct {
@@ -37,6 +39,27 @@ func (s *State) Connect(subjectID string) {
 	}
 	s.subjects[subjectID].Connected = true
 	s.subjects[subjectID].LastSeen = time.Now()
+}
+
+func (s *State) SetName(subjectID, name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, ok := s.subjects[subjectID]; !ok {
+		s.subjects[subjectID] = &SubjectState{
+			ScenariosDone: []string{},
+		}
+	}
+	s.subjects[subjectID].Name = name
+}
+
+func (s *State) SetCurrentScenario(subjectID, scenario string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if sub, ok := s.subjects[subjectID]; ok {
+		sub.CurrentScenario = scenario
+	}
 }
 
 func (s *State) Disconnect(subjectID string) {
@@ -75,10 +98,12 @@ func (s *State) GetAll() map[string]SubjectState {
 	result := make(map[string]SubjectState)
 	for id, sub := range s.subjects {
 		result[id] = SubjectState{
-			Connected:     sub.Connected,
-			ScenariosDone: append([]string{}, sub.ScenariosDone...),
-			BytesReceived: sub.BytesReceived,
-			LastSeen:      sub.LastSeen,
+			Connected:       sub.Connected,
+			Name:            sub.Name,
+			ScenariosDone:   append([]string{}, sub.ScenariosDone...),
+			CurrentScenario: sub.CurrentScenario,
+			BytesReceived:   sub.BytesReceived,
+			LastSeen:        sub.LastSeen,
 		}
 	}
 	return result

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	validSubjectID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,20}$`)
+	validSubjectID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,50}$`)
 	validScenarios = map[string]bool{
 		"bosan":     true,
 		"frustrasi": true,
@@ -20,7 +20,7 @@ var (
 
 func ValidateSubjectID(id string) error {
 	if !validSubjectID.MatchString(id) {
-		return fmt.Errorf("invalid subject ID: must be alphanumeric with hyphens/underscores, max 20 chars")
+		return fmt.Errorf("invalid subject ID: must be alphanumeric with hyphens/underscores, max 50 chars")
 	}
 	return nil
 }
@@ -46,9 +46,9 @@ func WriteChunked(dataDir, subjectID, scenario string, r io.Reader) (int64, erro
 	}
 
 	filePath := filepath.Join(subjectDir, scenario+".webm")
-	f, err := os.Create(filePath)
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create file: %w", err)
+		return 0, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer func() {
 		if closeErr := f.Close(); closeErr != nil && err == nil {
