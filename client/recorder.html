@@ -793,35 +793,143 @@
             switch (scenario.id) {
                 case 'antusias':
                     container.innerHTML = `
-                        <h2>Kuis Pengetahuan Umum</h2>
-                        <p class="task-instruction">Jawab sebanyak mungkin pertanyaan berikut sebelum waktu habis! Tulis jawaban singkat Anda di setiap kotak.</p>
-                        <ol class="question-list">
-                            <li>
-                                <label>1. Apa nama ibu kota negara Australia?</label>
-                                <input type="text" placeholder="Jawaban Anda">
-                            </li>
-                            <li>
-                                <label>2. Berapa jumlah planet dalam tata surya kita?</label>
-                                <input type="text" placeholder="Jawaban Anda">
-                            </li>
-                            <li>
-                                <label>3. Siapa penemu telepon?</label>
-                                <input type="text" placeholder="Jawaban Anda">
-                            </li>
-                            <li>
-                                <label>4. Apa nama gunung tertinggi di Indonesia?</label>
-                                <input type="text" placeholder="Jawaban Anda">
-                            </li>
-                            <li>
-                                <label>5. Dalam olahraga sepak bola, berapa jumlah pemain dalam satu tim di lapangan?</label>
-                                <input type="text" placeholder="Jawaban Anda">
-                            </li>
-                            <li>
-                                <label>6. Negara mana yang memiliki jumlah penduduk terbanyak di dunia?</label>
-                                <input type="text" placeholder="Jawaban Anda">
-                            </li>
-                        </ol>
+                        <h2>Tangkap Bintang!</h2>
+                        <p class="task-instruction">Klik bintang secepat mungkin sebelum menghilang!</p>
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 2rem; margin-bottom: 1rem;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.9rem; color: var(--text-muted);">Skor</div>
+                                <div id="gameScore" style="color: var(--success); font-weight: bold; font-size: 2rem;">0</div>
+                            </div>
+                            <div style="text-align: center; min-width: 150px;">
+                                <div style="font-size: 0.9rem; color: var(--text-muted);">Combo</div>
+                                <div id="comboText" style="color: var(--warning); font-weight: bold; font-size: 1.2rem; min-height: 1.5rem;">-</div>
+                            </div>
+                        </div>
+                        <div id="gameArea" style="position: relative; width: 100%; height: 350px; background: var(--surface); border: 2px solid var(--border); border-radius: 8px; overflow: hidden; cursor: crosshair;">
+                            <div id="startOverlay" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1);">
+                                <button id="startGameBtn" style="font-size: 1.2rem; padding: 1rem 2rem;">Mulai Permainan!</button>
+                            </div>
+                        </div>
+                        <p class="note-small" style="margin-top: 1rem; text-align: center;">🌟 = +10 poin | ⭐ = +50 poin | 💣 = reset combo</p>
                     `;
+                    
+                    let gameScore = 0;
+                    let combo = 0;
+                    let gameActive = false;
+                    const gameArea = document.getElementById('gameArea');
+                    const scoreDisplay = document.getElementById('gameScore');
+                    const comboText = document.getElementById('comboText');
+                    const startOverlay = document.getElementById('startOverlay');
+                    const startBtn = document.getElementById('startGameBtn');
+                    
+                    function createTarget() {
+                        if (!gameActive) return;
+                        
+                        const target = document.createElement('div');
+                        const isGold = Math.random() < 0.15;
+                        const isBomb = Math.random() < 0.1;
+                        const size = isGold ? 60 : (40 + Math.random() * 20);
+                        
+                        target.style.cssText = `
+                            position: absolute;
+                            width: ${size}px;
+                            height: ${size}px;
+                            border-radius: 50%;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: ${size * 0.6}px;
+                            transition: transform 0.1s;
+                            animation: pop-in 0.2s ease-out;
+                        `;
+                        
+                        if (isBomb) {
+                            target.textContent = '💣';
+                            target.dataset.type = 'bomb';
+                        } else if (isGold) {
+                            target.textContent = '⭐';
+                            target.dataset.type = 'gold';
+                            target.style.filter = 'drop-shadow(0 0 10px gold)';
+                        } else {
+                            target.textContent = '🌟';
+                            target.dataset.type = 'star';
+                        }
+                        
+                        const maxX = gameArea.clientWidth - size;
+                        const maxY = gameArea.clientHeight - size;
+                        target.style.left = Math.random() * maxX + 'px';
+                        target.style.top = Math.random() * maxY + 'px';
+                        
+                        target.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (target.dataset.type === 'bomb') {
+                                combo = 0;
+                                comboText.textContent = 'Oops! Combo reset!';
+                                comboText.style.color = 'var(--error)';
+                                target.style.transform = 'scale(1.5)';
+                                target.textContent = '💥';
+                            } else {
+                                combo++;
+                                const points = target.dataset.type === 'gold' ? 50 : 10;
+                                const bonus = Math.floor(combo / 3) * 5;
+                                gameScore += points + bonus;
+                                scoreDisplay.textContent = gameScore;
+                                
+                                if (combo >= 3) {
+                                    comboText.textContent = '🔥 ' + combo + 'x (+' + bonus + ')';
+                                    comboText.style.color = 'var(--warning)';
+                                } else {
+                                    comboText.textContent = combo + 'x';
+                                    comboText.style.color = 'var(--text-muted)';
+                                }
+                                
+                                target.style.transform = 'scale(0)';
+                                
+                                // Floating score effect
+                                const floater = document.createElement('div');
+                                floater.textContent = '+' + (points + bonus);
+                                floater.style.cssText = 'position: absolute; left: ' + target.style.left + '; top: ' + target.style.top + '; color: var(--success); font-weight: bold; font-size: 1.2rem; pointer-events: none; animation: float-up 0.8s ease-out forwards;';
+                                gameArea.appendChild(floater);
+                                setTimeout(() => floater.remove(), 800);
+                            }
+                            setTimeout(() => target.remove(), 150);
+                        });
+                        
+                        gameArea.appendChild(target);
+                        
+                        // Remove target after random time
+                        const lifetime = isBomb ? 2000 : (isGold ? 1200 : 1800);
+                        setTimeout(() => {
+                            if (target.parentNode) {
+                                target.style.transform = 'scale(0)';
+                                setTimeout(() => target.remove(), 150);
+                            }
+                        }, lifetime);
+                    }
+                    
+                    startBtn.addEventListener('click', () => {
+                        startOverlay.style.display = 'none';
+                        gameActive = true;
+                        
+                        // Spawn targets at increasing rate
+                        let spawnRate = 800;
+                        function spawn() {
+                            if (!gameActive) return;
+                            createTarget();
+                            spawnRate = Math.max(400, spawnRate - 10);
+                            setTimeout(spawn, spawnRate);
+                        }
+                        spawn();
+                    });
+                    
+                    // Add CSS animations
+                    if (!document.getElementById('gameStyles')) {
+                        const style = document.createElement('style');
+                        style.id = 'gameStyles';
+                        style.textContent = '@keyframes pop-in { 0% { transform: scale(0); } 80% { transform: scale(1.2); } 100% { transform: scale(1); } } @keyframes float-up { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-40px); } }';
+                        document.head.appendChild(style);
+                    }
                     break;
                     
                 case 'bosan':
