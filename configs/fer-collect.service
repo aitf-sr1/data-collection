@@ -1,0 +1,23 @@
+[Unit]
+Description=FER Data Collection Server
+After=network.target
+
+[Service]
+Type=simple
+User=fer
+Group=fer
+WorkingDirectory=/var/lib/fer-collect
+EnvironmentFile=/etc/fer-collect/.env
+ExecStart=/usr/local/bin/fer-server
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/fer-collect/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
