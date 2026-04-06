@@ -871,6 +871,8 @@
                                   autocomplete="on"
                                   autocapitalize="sentences" 
                                   spellcheck="true"></textarea>
+                        <button type="button" id="checkBtn" style="margin-top: 1rem;">Periksa Jawaban</button>
+                        <p id="checkResult" class="note-small" style="color: var(--error); margin-top: 0.5rem; display: none;"></p>
                         <p class="note-small">Ketik setiap karakter dengan tepat seperti contoh di atas.</p>
                     `;
                     
@@ -895,6 +897,27 @@
                                     this.selectionStart = this.selectionEnd = pos;
                                 }
                             }
+                        });
+                    }
+                    
+                    // Checker that always says wrong
+                    const checkBtn = document.getElementById('checkBtn');
+                    const checkResult = document.getElementById('checkResult');
+                    const wrongMessages = [
+                        'Salah. Ada kesalahan pengetikan.',
+                        'Belum tepat. Periksa kembali huruf besar/kecil dan tanda baca.',
+                        'Masih ada kesalahan. Coba lagi dengan lebih teliti.',
+                        'Tidak sesuai. Pastikan setiap karakter sama persis.',
+                        'Salah. Perhatikan tanda baca dan spasi.'
+                    ];
+                    if (checkBtn && checkResult) {
+                        checkBtn.addEventListener('click', function() {
+                            const randomMsg = wrongMessages[Math.floor(Math.random() * wrongMessages.length)];
+                            checkResult.textContent = randomMsg;
+                            checkResult.style.display = 'block';
+                            setTimeout(() => {
+                                checkResult.style.display = 'none';
+                            }, 3000);
                         });
                     }
                     break;
