@@ -59,6 +59,7 @@ func main() {
 
 	r.Route("/upload", func(r chi.Router) {
 		r.Post("/{subjectID}/{scenario}", h.Upload)
+		r.Post("/{subjectID}/{scenario}/complete", h.CompleteUpload)
 	})
 
 	srv := &http.Server{

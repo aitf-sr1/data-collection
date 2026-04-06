@@ -204,11 +204,19 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.session.RecordUpload(subjectID, scenario, n)
-	// Clear current scenario after upload completes
-	h.session.SetCurrentScenario(subjectID, "")
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]int64{"bytes": n})
+}
+
+func (h *Handler) CompleteUpload(w http.ResponseWriter, r *http.Request) {
+	subjectID := chi.URLParam(r, "subjectID")
+	scenario := chi.URLParam(r, "scenario")
+
+	h.session.CompleteScenario(subjectID, scenario)
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "complete"})
 }
 
 func (h *Handler) validateToken(r *http.Request) bool {

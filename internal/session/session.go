@@ -85,9 +85,19 @@ func (s *State) RecordUpload(subjectID, scenario string, bytes int64) {
 	sub := s.subjects[subjectID]
 	sub.BytesReceived += bytes
 	sub.LastSeen = time.Now()
+	
+	// Don't add to ScenariosDone here - it's handled by CompleteScenario
+}
 
-	if !slices.Contains(sub.ScenariosDone, scenario) {
-		sub.ScenariosDone = append(sub.ScenariosDone, scenario)
+func (s *State) CompleteScenario(subjectID, scenario string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if sub, ok := s.subjects[subjectID]; ok {
+		if !slices.Contains(sub.ScenariosDone, scenario) {
+			sub.ScenariosDone = append(sub.ScenariosDone, scenario)
+		}
+		sub.CurrentScenario = ""
 	}
 }
 

@@ -771,6 +771,15 @@
                 }
             }
             
+            // Mark upload as complete on server
+            try {
+                await fetch(`/upload/${subjectId}/${scenarioId}/complete`, {
+                    method: 'POST'
+                });
+            } catch (err) {
+                console.error('Failed to mark upload complete:', err);
+            }
+            
             return true;
         }
 
