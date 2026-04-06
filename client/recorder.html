@@ -293,6 +293,10 @@
             margin-bottom: 1.5rem;
             line-height: 1.8;
             font-size: 1rem;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
 
         .instruction-steps {
@@ -824,11 +828,19 @@
                     container.innerHTML = `
                         <h2>Tugas Menyalin Teks</h2>
                         <p class="task-instruction">Salin teks di bawah ini ke dalam kotak yang tersedia. Ketik setiap kata dengan tepat seperti yang tertulis.</p>
-                        <div class="copy-text-source">
+                        <div class="copy-text-source" id="copySource">
                             Berdasarkan peraturan nomor 12 tahun 2023 tentang tata kelola administrasi, setiap unit kerja wajib menyampaikan laporan bulanan paling lambat pada tanggal lima setiap bulannya. Laporan tersebut mencakup realisasi anggaran, realisasi kegiatan, dan kendala pelaksanaan kegiatan. Setiap unit kerja wajib menyampaikan laporan bulanan paling lambat pada tanggal lima setiap bulannya. Laporan tersebut mencakup realisasi anggaran, realisasi kegiatan, dan kendala pelaksanaan kegiatan. Seluruh laporan harus disertai dengan lampiran bukti pendukung yang sah. Keterlambatan penyampaian laporan akan dicatat dan dilaporkan kepada pimpinan unit kerja. Setiap unit kerja wajib menyampaikan laporan bulanan paling lambat pada tanggal lima setiap bulannya.
                         </div>
                         <textarea placeholder="Ketik ulang teks di atas di sini" rows="8"></textarea>
                     `;
+                    
+                    // Prevent copy/cut/paste on source text
+                    const copySource = document.getElementById('copySource');
+                    if (copySource) {
+                        copySource.addEventListener('copy', (e) => e.preventDefault());
+                        copySource.addEventListener('cut', (e) => e.preventDefault());
+                        copySource.addEventListener('contextmenu', (e) => e.preventDefault());
+                    }
                     break;
                     
                 case 'bingung':
