@@ -861,14 +861,42 @@
                     
                 case 'frustrasi':
                     container.innerHTML = `
-                        <h2>Tugas Menemukan Kata</h2>
-                        <p class="task-instruction">Temukan dan tuliskan semua kata yang mengandung huruf 'ng' berturut-turut dalam teks di bawah ini. Anda harus menemukan tepat 25 kata. Tuliskan satu kata per baris di kotak jawaban.</p>
-                        <div class="copy-text-source">
-                            Pada hari itu cuaca terasa panas sekali. Para petani di desa itu bekerja keras di sawah mereka. Mereka menanam padi dengan tekun dari pagi sampai sore. Air dari sumber mata air dialirkan ke seluruh sawah. Beberapa orang membawa bekal makanan dari rumah. Anak-anak bermain di tepi jalan sambil menonton para petani. Seorang kakek duduk di bawah pohon besar. Dia melihat cucu-cucunya berlarian ke sana kemari. Seekor kupu-kupu terbang melewati ladang bunga. Burung-burung kecil berkicau di dahan pohon. Udara terasa sejuk ketika angin bertiup dari barat. Para petani beristirahat sejenak untuk makan siang. Mereka duduk bersama di bawah naungan gubuk kecil. Setelah itu mereka kembali bekerja sampai matahari terbenam.
+                        <h2>Ketik Teks Tepat</h2>
+                        <p class="task-instruction">Ketik kalimat berikut PERSIS seperti yang tertulis, termasuk huruf kecil dan tanda baca:</p>
+                        <div class="copy-text-source" id="frustrasiSource">
+                            the quick brown fox, jumps over; the lazy dog. dont fix this sentence, its fine as is. really, i mean it.
                         </div>
-                        <textarea placeholder="Tulis satu kata per baris" rows="10"></textarea>
-                        <p class="note-small">Pastikan Anda menemukan semua 25 kata sebelum waktu habis.</p>
+                        <textarea id="frustrasiInput" placeholder="Ketik ulang teks di atas" rows="4" 
+                                  autocorrect="on" 
+                                  autocomplete="on"
+                                  autocapitalize="sentences" 
+                                  spellcheck="true"></textarea>
+                        <p class="note-small">Ketik setiap karakter dengan tepat seperti contoh di atas.</p>
                     `;
+                    
+                    // Prevent copy from source
+                    const frustrasiSource = document.getElementById('frustrasiSource');
+                    if (frustrasiSource) {
+                        frustrasiSource.addEventListener('copy', (e) => e.preventDefault());
+                        frustrasiSource.addEventListener('cut', (e) => e.preventDefault());
+                        frustrasiSource.addEventListener('contextmenu', (e) => e.preventDefault());
+                    }
+                    
+                    // Add extra annoying behavior: force capitalize first letter on every new line
+                    const frustrasiInput = document.getElementById('frustrasiInput');
+                    if (frustrasiInput) {
+                        frustrasiInput.addEventListener('input', function(e) {
+                            // Random chance to insert extra spaces or capitalize randomly
+                            if (Math.random() < 0.1) {
+                                const pos = this.selectionStart;
+                                const val = this.value;
+                                if (pos > 0 && val[pos - 1] && val[pos - 1].match(/[a-z]/)) {
+                                    this.value = val.substring(0, pos - 1) + val[pos - 1].toUpperCase() + val.substring(pos);
+                                    this.selectionStart = this.selectionEnd = pos;
+                                }
+                            }
+                        });
+                    }
                     break;
             }
         }
