@@ -364,6 +364,19 @@
             animation: spin 0.8s linear infinite;
         }
 
+        .upload-screen-spinner {
+            width: 42px;
+            height: 42px;
+            border-width: 4px;
+            margin: 1rem auto;
+        }
+
+        .upload-screen-text {
+            max-width: 520px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
@@ -430,6 +443,13 @@
     <!-- Screen 5: Active Tasks -->
     <div class="screen" id="screen5">
         <div class="task-container" id="taskContainer"></div>
+    </div>
+
+    <!-- Screen: Uploading -->
+    <div class="screen" id="screenUpload">
+        <h1>Menyimpan Rekaman...</h1>
+        <div class="spinner upload-screen-spinner"></div>
+        <p class="upload-screen-text" id="uploadScreenText">Mohon tunggu, video sedang diunggah ke server.</p>
     </div>
 
     <!-- Screen 6: Complete -->
@@ -617,6 +637,7 @@
         }
 
         async function runScenario(scenario) {
+            showScreen('screen5');
             renderScenarioContent(scenario);
             
             // Update server with current scenario by making first upload with empty body
@@ -701,7 +722,14 @@
             });
             
             // Upload
+            const uploadScreenText = document.getElementById('uploadScreenText');
             recordingDot.style.display = 'none';
+            bottomBar.classList.remove('visible');
+            document.getElementById('timerDisplay').textContent = '';
+            if (uploadScreenText) {
+                uploadScreenText.textContent = 'Mengunggah video ke server...';
+            }
+            showScreen('screenUpload');
             uploadStatus.textContent = 'Mengunggah video...';
             
             const blob = new Blob(recordedChunks, { type: 'video/webm' });
@@ -710,6 +738,9 @@
             if (success) {
                 uploadStatus.className = 'upload-status success';
                 uploadStatus.textContent = 'Video tersimpan ✓';
+                if (uploadScreenText) {
+                    uploadScreenText.textContent = 'Video tersimpan. Menyiapkan tugas berikutnya...';
+                }
                 await new Promise(r => setTimeout(r, 2000));
             } else {
                 throw new Error('Upload failed');
@@ -740,13 +771,18 @@
         async function uploadVideo(blob, scenarioId) {
             const totalChunks = Math.ceil(blob.size / CHUNK_SIZE);
             const uploadStatus = document.getElementById('uploadStatus');
+            const uploadScreenText = document.getElementById('uploadScreenText');
             
             for (let i = 0; i < totalChunks; i++) {
                 const start = i * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, blob.size);
                 const chunk = blob.slice(start, end);
                 
-                uploadStatus.textContent = `Mengunggah video... ${i + 1} dari ${totalChunks} bagian`;
+                const progressText = `Mengunggah video... ${i + 1} dari ${totalChunks} bagian`;
+                uploadStatus.textContent = progressText;
+                if (uploadScreenText) {
+                    uploadScreenText.textContent = progressText;
+                }
                 
                 let success = false;
                 for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -771,6 +807,9 @@
                 if (!success) {
                     uploadStatus.className = 'upload-status error';
                     uploadStatus.textContent = 'Gagal mengirim video. Periksa koneksi internet Anda.';
+                    if (uploadScreenText) {
+                        uploadScreenText.textContent = 'Gagal mengirim video. Periksa koneksi internet Anda.';
+                    }
                     return false;
                 }
             }
