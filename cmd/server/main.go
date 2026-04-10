@@ -55,6 +55,7 @@ func main() {
 	r.Get("/health", h.Health)
 	r.Get("/status", h.Status)
 	r.Get("/session/cues", h.SSE)
+	r.Get("/session/resume/{subjectID}", h.Resume)
 	r.Post("/session/start", h.StartSession)
 
 	r.Route("/upload", func(r chi.Router) {

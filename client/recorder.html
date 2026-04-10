@@ -481,6 +481,8 @@
         const CHUNK_SIZE = 512 * 1024;
         const MAX_RETRIES = 3;
         const RETRY_DELAY = 2000;
+        const STORAGE_ID_KEY = 'fer_subject_id';
+        const STORAGE_NAME_KEY = 'fer_subject_name';
 
         let subjectId = '';
         let subjectName = '';
@@ -493,6 +495,7 @@
         let elapsedTimer = null;
         let elapsedSeconds = 0;
         let reconnectAttempts = 0;
+        let hasStartedScenarios = false;
 
         // Generate UUID v4
         function generateUUID() {
@@ -502,6 +505,40 @@
                 return v.toString(16);
             });
         }
+
+        function readSessionValue(key) {
+            try {
+                return sessionStorage.getItem(key) || '';
+            } catch (err) {
+                return '';
+            }
+        }
+
+        function writeSessionValue(key, value) {
+            try {
+                sessionStorage.setItem(key, value);
+            } catch (err) {
+                console.error('Failed to store session value:', err);
+            }
+        }
+
+        function loadIdentityFromSession() {
+            const storedID = readSessionValue(STORAGE_ID_KEY);
+            const storedName = readSessionValue(STORAGE_NAME_KEY);
+
+            if (storedID) {
+                subjectId = storedID;
+            }
+            if (storedName) {
+                subjectName = storedName;
+                const input = document.getElementById('nameInput');
+                if (input) {
+                    input.value = storedName;
+                }
+            }
+        }
+
+        loadIdentityFromSession();
 
         // Check browser support
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
@@ -531,8 +568,18 @@
                 return;
             }
             
+            const storedID = readSessionValue(STORAGE_ID_KEY);
+            const storedName = readSessionValue(STORAGE_NAME_KEY);
+
             subjectName = input;
-            subjectId = generateUUID();
+            if (storedID && storedName === input) {
+                subjectId = storedID;
+            } else {
+                subjectId = generateUUID();
+            }
+
+            writeSessionValue(STORAGE_ID_KEY, subjectId);
+            writeSessionValue(STORAGE_NAME_KEY, subjectName);
             error.style.display = 'none';
             showScreen('screen2');
         });
@@ -571,9 +618,10 @@
         });
 
         // Screen 3: Camera Check
-        document.getElementById('cameraReadyBtn').addEventListener('click', () => {
+        document.getElementById('cameraReadyBtn').addEventListener('click', async () => {
             showScreen('screen4');
             connectSSE();
+            await tryResumeProgress();
         });
 
         // Screen 4: SSE Connection
@@ -600,7 +648,7 @@
                     const data = JSON.parse(e.data);
                     if (data.type === 'start') {
                         pill.classList.remove('visible');
-                        startScenarios();
+                        startScenarios(currentScenarioIndex);
                     }
                 } catch (err) {
                     console.error('SSE parse error:', err);
@@ -618,22 +666,76 @@
             };
         }
 
-        // Screen 5: Scenarios
-        async function startScenarios() {
-            showScreen('screen5');
-            document.getElementById('topBar').classList.add('visible');
-            document.getElementById('subjectIdDisplay').textContent = `Peserta: ${subjectName}`;
-            
-            for (let i = 0; i < SCENARIOS.length; i++) {
-                currentScenarioIndex = i;
-                await runScenario(SCENARIOS[i]);
-            }
-            
-            // All done
+        function showCompletionScreen() {
             document.getElementById('topBar').classList.remove('visible');
             document.getElementById('bottomBar').classList.remove('visible');
             document.getElementById('finalSubjectId').textContent = `Peserta: ${subjectName}`;
             showScreen('screen6');
+        }
+
+        async function tryResumeProgress() {
+            if (!subjectId) {
+                return;
+            }
+
+            try {
+                const resp = await fetch(`/session/resume/${subjectId}`);
+                if (!resp.ok) {
+                    return;
+                }
+
+                const data = await resp.json();
+                if (data.subject_name && !subjectName) {
+                    subjectName = data.subject_name;
+                    writeSessionValue(STORAGE_NAME_KEY, subjectName);
+                }
+
+                if (!data.started) {
+                    return;
+                }
+
+                const pill = document.getElementById('statusPill');
+                pill.classList.remove('visible');
+
+                if (data.completed) {
+                    showCompletionScreen();
+                    return;
+                }
+
+                if (typeof data.next_index === 'number' && data.next_index >= 0) {
+                    currentScenarioIndex = data.next_index;
+                } else {
+                    currentScenarioIndex = 0;
+                }
+
+                startScenarios(currentScenarioIndex);
+            } catch (err) {
+                console.error('Failed to restore progress:', err);
+            }
+        }
+
+        // Screen 5: Scenarios
+        async function startScenarios(startIndex = 0) {
+            if (hasStartedScenarios) {
+                return;
+            }
+            hasStartedScenarios = true;
+
+            if (startIndex >= SCENARIOS.length) {
+                showCompletionScreen();
+                return;
+            }
+
+            showScreen('screen5');
+            document.getElementById('topBar').classList.add('visible');
+            document.getElementById('subjectIdDisplay').textContent = `Peserta: ${subjectName}`;
+            
+            for (let i = startIndex; i < SCENARIOS.length; i++) {
+                currentScenarioIndex = i;
+                await runScenario(SCENARIOS[i]);
+            }
+            
+            showCompletionScreen();
         }
 
         async function runScenario(scenario) {

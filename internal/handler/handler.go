@@ -100,6 +100,75 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
+func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
+	subjectID := chi.URLParam(r, "subjectID")
+	if err := upload.ValidateSubjectID(subjectID); err != nil {
+		http.Error(w, `{"error":"invalid subject_id"}`, http.StatusBadRequest)
+		return
+	}
+
+	sub, exists := h.session.GetSubject(subjectID)
+	scenariosDone := []string{}
+	currentScenario := ""
+	subjectName := ""
+	if exists {
+		scenariosDone = sub.ScenariosDone
+		currentScenario = sub.CurrentScenario
+		subjectName = sub.Name
+	}
+
+	scenarioOrder := []string{"antusias", "bosan", "bingung", "frustrasi"}
+	nextIndex := 0
+	if currentScenario != "" {
+		for i, scenario := range scenarioOrder {
+			if scenario == currentScenario {
+				nextIndex = i
+				break
+			}
+		}
+	} else {
+		done := make(map[string]bool, len(scenariosDone))
+		for _, scenario := range scenariosDone {
+			done[scenario] = true
+		}
+		nextIndex = len(scenarioOrder)
+		for i, scenario := range scenarioOrder {
+			if !done[scenario] {
+				nextIndex = i
+				break
+			}
+		}
+	}
+
+	if !exists {
+		nextIndex = 0
+	}
+
+	completed := nextIndex >= len(scenarioOrder)
+	if completed {
+		nextIndex = len(scenarioOrder)
+	}
+
+	var startedAt any = nil
+	if h.session.IsStarted() {
+		startedAt = h.session.StartedAt().Format(time.RFC3339)
+	}
+
+	resp := map[string]any{
+		"started":          h.session.IsStarted(),
+		"started_at":       startedAt,
+		"subject_exists":   exists,
+		"subject_name":     subjectName,
+		"current_scenario": currentScenario,
+		"scenarios_done":   scenariosDone,
+		"next_index":       nextIndex,
+		"completed":        completed,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
 func (h *Handler) SSE(w http.ResponseWriter, r *http.Request) {
 	subjectID := r.URL.Query().Get("subject_id")
 	if err := upload.ValidateSubjectID(subjectID); err != nil {
